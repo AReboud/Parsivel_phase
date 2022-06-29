@@ -1,9 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jun 28 23:13:11 2022
+Created on Tue Jun 28 13:13:11 2022
 
-@author: rebouda
+@author: Arnaud Reboud, IGE
 """
+import numpy as np
+import pandas as pd
+import matplotlib as mpl
+from matplotlib import cm
+import matplotlib.pyplot as plt
+import seaborn as sn
+from math import log10
+from datetime import datetime, timedelta
+from copy import copy, deepcopy
+import os.path
+import re
+
 
 def fall_velocity(d):
     """
@@ -20,7 +32,7 @@ def fall_velocity(d):
         Vertical velocity of the falling particles in m/s.
 
     """
-    import numpy as np
+
     #d= diameter in mm, return v=velocity in m/s
     #Empirical formula for rain: v= 9.65 - 10.3*np.exp(-0.6*d) #fall velocity for Rain part. from Atlas(1973)
     if d<1.34 :
@@ -45,8 +57,6 @@ def plot_laws_vd(laws_vd):
     None.
 
     """
-    import matplotlib.pyplot as plt
-    import numpy as np
     
     cmap = plt.get_cmap('tab20c')
     for laws in laws_vd.index:
@@ -96,8 +106,6 @@ def build_matrix_precip_type(Parsivel_class, v_g=10, v_s=3, d_h=5):
         Classification matrx of the 6 precipitation types.
 
     """
-    import pandas as pd
-    import numpy as np
     
     matrix_vd=pd.DataFrame(index=Parsivel_class.Size_Class_average, 
                            columns=Parsivel_class.Velocity_Class_average)
@@ -209,8 +217,6 @@ def read_codesynop(filename, start_time, end_time, step_time=1):
         Same Dataframe with added information of precipitation Type and Phase.
 
     """
-    import pandas as pd
-    import numpy as np
     
     data_Parsi = pd.read_csv(filename, skiprows=[2, 3], index_col=0, header=1,
                            parse_dates=[0], infer_datetime_format=True)
@@ -276,10 +282,6 @@ def compute_drop_by_step(dsd, matrix_vd,
         velocity.
 
     """
-    import datetime
-    from copy import copy, deepcopy
-    import pandas as pd
-    import numpy as np
     
     dsd_local = deepcopy(dsd)
     
@@ -288,9 +290,9 @@ def compute_drop_by_step(dsd, matrix_vd,
     if pd.to_datetime(arg=end_time) > pd.to_datetime(arg=dsd_local.time["data"][-1], unit='s'):
         end_time = str(pd.to_datetime(arg=dsd_local.time["data"][-1], unit='s'))
         
-    run_time = datetime.datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
-    end_time = datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
-    step_time = datetime.timedelta(minutes= step_time)
+    run_time = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+    end_time = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
+    step_time = timedelta(minutes= step_time)
     print('start= '+str(start_time))
     print('end= '+str(end_time))
     it_time = 0
@@ -444,12 +446,6 @@ def plot_dsd_vs_matrix(dsd, matrix_vd,
 
     """
     
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import pandas as pd
-    import matplotlib as mpl
-    from matplotlib import cm
-    
     ispec_time = np.argwhere(pd.to_datetime(arg=dsd.time["data"][:], unit='s')==spec_time)[0][0]
     
     #compute drop numbers for each precip types
@@ -492,7 +488,7 @@ def plot_dsd_vs_matrix(dsd, matrix_vd,
     #plot2
     if classif == 'Type':
         plt.figure(figsize=(8,5))
-        pal = plt.cm.get_cmap("viridis_r").copy()
+        pal = copy(plt.cm.get_cmap("viridis_r"))
         pal.set_bad(color='white', alpha=0) #set nan or 0 colors as transparent
         #pal.colors[0]=[1,1,1]
         fig, ax = plt.subplots()
@@ -505,7 +501,7 @@ def plot_dsd_vs_matrix(dsd, matrix_vd,
         
     if classif == 'Phase':
         matrix_phase = matrix_vd.replace(to_replace = [[3,4],[1,2,6],5], value = [0,1,2])
-        pal = plt.cm.get_cmap("turbo").copy()
+        pal = copy(plt.cm.get_cmap("turbo"))
         pal.set_bad(color='white', alpha=0) #set nan or 0 colors as transparent
         #pal.colors[0]=[1,1,1]
         fig, ax = plt.subplots(facecolor= 'white', dpi=300, figsize=(5,4))
@@ -575,10 +571,6 @@ def get_phase_mix(df_predicted, df_Parsivel,minMass=4e-6):
         and the manufacturer-based determination of the particle's phase.
 
     """
-    
-    import numpy as np
-    import pandas as pd
-    
     #Min Mass: filter the precip intensity lower than a threshold in kg/min
 
     #create a local dataframe, not mutable
@@ -610,11 +602,6 @@ def plot_major_phase_contribution(df_compare, density=True):
     Number of particles or the mass equivalent.
 
     """
-    
-    import numpy as np
-    import pandas as pd
-    import matplotlib.pyplot as plt
-    import seaborn as sn
     
     minMass = 4e-6 #kg/1min to be modified if other value has been used for the thereshold
 
@@ -673,12 +660,31 @@ def plot_major_phase_contribution(df_compare, density=True):
 
 def get_confusion_matrix(df_compare, var='Npart'):
     """
-    Min Mass = filter the precip intensity lower than a threshold in kg/min
-    PrecipType = "solid",'Liqud','Mixture' --> the phase wanted to be compared between the Parsivel output and the experimental matrix 
+    Compute the confusion matrix between the major phase computed from the 
+    particle size ditribution through the experimental matrix and the major
+    phase according the manufacturer-based observations (code Synop).
+    Also returns a Dataframe with the scores of the confusion matrix (Recall, 
+    Accuracy, Kappa, Precision, F1 score).
+
+    Parameters
+    ----------
+    df_compare : DataFrame
+        Merged Dataframe with both data from the experimental classification
+        and the manufacturer-based determination of the particle's phase.
+    var : str, optional
+        'Npart' to consider the number of particles and 'Masspart' to consider
+        the mass of the particles for the calculation of the major phase. 
+        The default is 'Npart'.
+
+    Returns
+    -------
+    conf_mat : numpy array
+        Confusion matrix.
+    vec_score : DataFrame
+        Vector of the scores of the confusion matrix according several metrics.
+
     """
     
-    import numpy as np
-    import pandas as pd
     from sklearn import metrics
     from sklearn.metrics import confusion_matrix
     
@@ -757,9 +763,21 @@ def get_confusion_matrix(df_compare, var='Npart'):
     return conf_mat, vec_score
 
 def plot_confusion_matrix(mat_confusion):
+    """
+    Plot the confusion matrix with the 4 values possibles for the phase 
+    observed: 'Solid', 'Liquid', 'Mixture' and 'No precipitation'.
+        
+    Parameters
+    ----------
+    mat_confusion : numpy array
+        Confusion matrix.
+
+    Returns
+    -------
+    Plot of the confusion matrix.
+
+    """
     
-    import matplotlib.pyplot as plt
-    import seaborn as sn
     from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
     
     fig, ax = plt.subplots(facecolor='white', dpi=300, figsize = (6,5))

@@ -8,16 +8,8 @@ Created on Tue Jun 28 13:06:55 2022
 import pandas as pd
 import numpy as np
 import matplotlib as mpl
-import matplotlib.pyplot as plt
-from matplotlib import cm
-import matplotlib.dates as mdate
-import seaborn as sn
-from sklearn import metrics
-from sklearn.metrics import confusion_matrix
-from copy import copy, deepcopy
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 import func # func.py: where the internal functions are located
-import pydsd
+from utils import ParsivelReader_Campbell
 
 path_save = './Plots/'
 station_name = 'Chamrousse' #2020-12
@@ -36,11 +28,11 @@ class_size_vd = pd.read_csv('./utils/Parsivel_vd_class.csv',sep=';')
 matrix_vd = func.build_matrix_precip_type(Parsivel_class=class_size_vd)
 
 #compute the DSD from the Parsivel raw records
-dsd = pydsd.read_parsivel_Campbell(Parsi_filename,
-                                   Spect_filename,
-                                      # start='2020-12-11 06:00:00',
-                                      # stop='2020-12-13 06:00:00',
-                                     resampling='1min'
+dsd = ParsivelReader_Campbell.read_parsivel_Campbell(Parsi_filename,
+                                                     Spect_filename,
+                                                      # start='2020-12-11 06:00:00',
+                                                      # stop='2020-12-13 06:00:00',
+                                                     resampling='1min'
 )
 
 
