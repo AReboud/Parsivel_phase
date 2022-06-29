@@ -24,6 +24,7 @@ This code processes the raw files (require 2 files .raw of OTT Parsivel2 records
 Two methods are proposed:
  - Calculation of the precipitation phase according to the Synop Code, output from the Parsivel.
  - Calculation based from the particles size and velocity classes recorded by the Parsivel. The phase is infered through an experimental matrix of classification based on the schematic classification from Löffler-Mang (2000).
+
 The major phase observed according those both methods are compared through a confusion matrix (with associated metrics) to determine the optimal parameters (snowflakes density, particles mass threshold, etc.).
 Plots illustrating the reasonning are also provided.
 
